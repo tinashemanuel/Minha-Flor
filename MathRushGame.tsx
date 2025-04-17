@@ -1,0 +1,125 @@
+'use client';
+import React, { useState, useEffect } from "react";
+
+export default function MathRushGame() {
+  const [questionIndex, setQuestionIndex] = useState(0);
+  const [questions, setQuestions] = useState([]);
+  const [currentQuestion, setCurrentQuestion] = useState({ q: "", a: 0 });
+  const [answer, setAnswer] = useState("");
+  const [score, setScore] = useState(0);
+  const [timeLeft, setTimeLeft] = useState(10);
+  const [showResult, setShowResult] = useState(false);
+
+  const correctAudio = typeof Audio !== "undefined" ? new Audio("/sounds/correct.mp3") : null;
+  const wrongAudio = typeof Audio !== "undefined" ? new Audio("/sounds/wrong.mp3") : null;
+
+  const generateQuestions = () => {
+    const ops = ["+", "-", "*", "/"];
+    const newQuestions = new Set();
+
+    while (newQuestions.size < 5) {
+      const num1 = Math.floor(Math.random() * 20 + 1);
+      const num2 = Math.floor(Math.random() * 20 + 1);
+      const op = ops[Math.floor(Math.random() * ops.length)];
+
+      let question = "";
+      let answer = 0;
+
+      if (op === "+") {
+        question = `${num1} + ${num2}`;
+        answer = num1 + num2;
+      } else if (op === "-") {
+        question = `${num1} - ${num2}`;
+        answer = num1 - num2;
+      } else if (op === "*") {
+        question = `${num1} × ${num2}`;
+        answer = num1 * num2;
+      } else if (op === "/") {
+        const product = num1 * num2;
+        question = `${product} ÷ ${num1}`;
+        answer = num2;
+      }
+
+      newQuestions.add(JSON.stringify({ q: question, a: answer }));
+    }
+
+    return Array.from(newQuestions).map((q) => JSON.parse(q));
+  };
+
+  useEffect(() => {
+    const q = generateQuestions();
+    setQuestions(q);
+    setCurrentQuestion(q[0]);
+  }, []);
+
+  useEffect(() => {
+    if (timeLeft > 0 && questionIndex < 5) {
+      const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
+      return () => clearTimeout(timer);
+    } else if (timeLeft === 0) {
+      handleSubmit(false);
+    }
+  }, [timeLeft]);
+
+  const handleSubmit = (manual = true) => {
+    const correct = parseInt(answer) === currentQuestion.a;
+
+    if (correct && correctAudio) {
+      correctAudio.play();
+      const bonus = Math.max(0, timeLeft);
+      setScore(score + 10 + bonus);
+    } else if (!correct && wrongAudio) {
+      wrongAudio.play();
+    }
+
+    setAnswer("");
+    if (questionIndex + 1 < 5) {
+      const next = questions[questionIndex + 1];
+      setCurrentQuestion(next);
+      setQuestionIndex(questionIndex + 1);
+      setTimeLeft(10);
+    } else {
+      setShowResult(true);
+    }
+  };
+
+  const handleAnswerChange = (e) => {
+    const value = e.target.value;
+    setAnswer(value);
+    if (parseInt(value) === currentQuestion.a) {
+      handleSubmit(true);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-yellow-100 flex flex-col items-center justify-center p-4">
+      <h1 className="text-3xl font-bold mb-6">MathRush</h1>
+      {!showResult ? (
+        <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md text-center">
+          <p className="text-xl mb-4">Pergunta {questionIndex + 1}/5</p>
+          <p className="text-2xl font-semibold mb-2">{currentQuestion.q}</p>
+          <input
+            type="number"
+            value={answer}
+            onChange={handleAnswerChange}
+            className="border rounded px-4 py-2 mb-4 w-full"
+            autoFocus
+          />
+          <div className="text-gray-700">Tempo restante: {timeLeft}s</div>
+          <div className="mt-2 font-bold">Pontuação: {score}</div>
+        </div>
+      ) : (
+        <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md text-center">
+          <h2 className="text-2xl font-bold mb-4">Fim do Jogo</h2>
+          <p className="text-xl mb-2">Pontuação Final: {score}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-4 bg-green-500 text-white px-6 py-2 rounded-xl hover:bg-green-600"
+          >
+            Jogar Novamente
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
